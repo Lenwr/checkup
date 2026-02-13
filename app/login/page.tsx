@@ -64,7 +64,7 @@ export default function LoginPage() {
             />
 
             <button
-              className="w-full rounded-xl bg-greff-600 px-4 py-3 font-medium text-white hover:bg-greff-700 disabled:opacity-60"
+              className="w-full rounded-xl bg-greff-600 border-2 px-4 py-3 font-medium text-black hover:bg-greff-700 disabled:opacity-60"
               disabled={loading}
             >
               {loading ? "Connexion..." : "Se connecter"}

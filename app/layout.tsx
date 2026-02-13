@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Checkup Greff’Up",
-  description: "Check-up Impact — Greff’Up",
+  title: "Checkup Impact",
+  description: "Check-up Impact by Greff’Up",
   icons: {
     icon: "/brand/logo.png",
     apple: "/brand/logo.png",
