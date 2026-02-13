@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Checkup Greff’Up",
   description: "Check-up Impact — Greff’Up",
+  icons: {
+    icon: "/brand/logo.png",
+    apple: "/brand/logo.png",
+  },
 };
 
 export default function RootLayout({
