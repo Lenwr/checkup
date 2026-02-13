@@ -14,14 +14,12 @@ export default function DashboardLayout({
             <Link href="/dashboard/interventions" className="text-lg font-semibold">
               Checkup Impact
             </Link>
-
             <nav className="flex items-center gap-4 text-sm text-muted-foreground">
               <Link href="/dashboard/interventions" className="hover:text-foreground hover:underline">
                 Interventions
               </Link>
             </nav>
           </div>
-
           <LogoutButton />
         </div>
       </header>
