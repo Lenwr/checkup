@@ -4,32 +4,50 @@ import { createServerClient } from "@supabase/ssr";
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return req.cookies.getAll();
-        },
-        setAll(cookies) {
-          cookies.forEach(({ name, value, options }) => {
-            res.cookies.set(name, value, options);
-          });
-        },
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Hard fail clair si env manquantes
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("Missing Supabase env vars in middleware");
+    return res;
+  }
+
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return req.cookies.getAll();
       },
-    }
-  );
+      setAll(cookies) {
+        cookies.forEach(({ name, value, options }) => {
+          res.cookies.set(name, value, options);
+        });
+      },
+    },
+  });
 
-  const { data } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getUser();
 
-  const isDashboard = req.nextUrl.pathname.startsWith("/dashboard");
-  const isLogin = req.nextUrl.pathname.startsWith("/login");
-  const isAdminApi = req.nextUrl.pathname.startsWith("/api/admin");
+  // Si erreur auth, on considère non connecté
+  const user = error ? null : data.user;
 
-  if ((isDashboard || isAdminApi) && !data.user && !isLogin) {
+  const pathname = req.nextUrl.pathname;
+
+  const isDashboard = pathname.startsWith("/dashboard");
+  const isAdminApi = pathname.startsWith("/api/admin");
+  const isLogin = pathname.startsWith("/login");
+
+  // 🔒 Bloque dashboard + admin api si pas loggé
+  if ((isDashboard || isAdminApi) && !user) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
+  // ✨ Bonus UX : si déjà loggé et tu vas sur /login -> renvoie vers dashboard
+  if (isLogin && user) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/dashboard/interventions";
     return NextResponse.redirect(url);
   }
 
@@ -37,5 +55,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/admin/:path*"],
+  matcher: ["/dashboard/:path*", "/api/admin/:path*", "/login"],
 };

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
-
+import BrandHeader from "@/app/dashboard/_components/BrandHeader";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,46 +20,58 @@ export default function LoginPage() {
     setErr(null);
 
     const { error } = await sb.auth.signInWithPassword({ email, password });
-
     setLoading(false);
 
-    if (error) {
-      setErr(error.message);
-      return;
-    }
+    if (error) return setErr(error.message);
 
     router.push("/dashboard/interventions");
     router.refresh();
   };
 
   return (
-    <main className="mx-auto max-w-md p-6">
-      <h1 className="text-2xl font-semibold">Connexion</h1>
+    <main className="min-h-screen">
+      <BrandHeader subtitle="Espace équipe" />
 
-      {err && <div className="mt-4 rounded-md border p-3 text-sm text-red-500">{err}</div>}
+      <div className="mx-auto mt-10 max-w-md px-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-xl font-semibold">Connexion</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Accès réservé à l’équipe Greff’Up.
+          </p>
 
-      <form onSubmit={onLogin} className="mt-6 space-y-3">
-        <input
-          className="w-full rounded-md border p-2"
-          placeholder="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          className="w-full rounded-md border p-2"
-          placeholder="Mot de passe"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+          {err && (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {err}
+            </div>
+          )}
 
-        <button className="w-full rounded-md border px-4 py-2" disabled={loading}>
-          {loading ? "Connexion..." : "Se connecter"}
-        </button>
-      </form>
+          <form onSubmit={onLogin} className="mt-6 space-y-3">
+            <input
+              className="w-full rounded-xl border border-slate-200 bg-white p-3 outline-none focus:border-greff-600"
+              placeholder="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input
+              className="w-full rounded-xl border border-slate-200 bg-white p-3 outline-none focus:border-greff-600"
+              placeholder="Mot de passe"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+
+            <button
+              className="w-full rounded-xl bg-greff-600 px-4 py-3 font-medium text-white hover:bg-greff-700 disabled:opacity-60"
+              disabled={loading}
+            >
+              {loading ? "Connexion..." : "Se connecter"}
+            </button>
+          </form>
+        </div>
+      </div>
     </main>
   );
 }
