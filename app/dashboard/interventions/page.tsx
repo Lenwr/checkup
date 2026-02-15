@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
+import DeleteInterventionInline from "./DeleteInterventionInline";
 
 export default async function InterventionsPage() {
   const sb = supabaseServer();
@@ -16,9 +17,7 @@ export default async function InterventionsPage() {
       {/* HEADER */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">
-            Interventions
-          </h1>
+          <h1 className="text-2xl font-semibold">Interventions</h1>
           <p className="mt-1 text-sm text-slate-500">
             Suivi des actions de sensibilisation Greff’Up
           </p>
@@ -48,19 +47,25 @@ export default async function InterventionsPage() {
             href={`/dashboard/interventions/${it.id}`}
             className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-greff-300 hover:shadow-md"
           >
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-lg font-medium group-hover:text-greff-600 transition">
                   {it.etablissement}
                 </div>
 
-                <div className="mt-1 text-sm text-slate-500">
-                  {it.lieu}
-                </div>
+                <div className="mt-1 text-sm text-slate-500">{it.lieu}</div>
               </div>
 
-              <div className="rounded-full bg-greff-50 px-3 py-1 text-xs font-medium text-greff-700">
-                {it.type_public}
+              {/* Badge + Delete */}
+              <div className="flex items-center gap-2">
+                <div className="rounded-full bg-greff-50 px-3 py-1 text-xs font-medium text-greff-700">
+                  {it.type_public}
+                </div>
+
+                <DeleteInterventionInline
+                  id={it.id}
+                  label={`${it.etablissement} — ${it.date}`}
+                />
               </div>
             </div>
 
