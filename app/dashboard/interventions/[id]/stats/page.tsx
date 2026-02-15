@@ -1,6 +1,15 @@
 import { supabaseServer } from "@/lib/supabase/server";
-import { percent, countBy, toChartData } from "@/lib/analytics";
+import { percent, countBy, countMulti, toChartData } from "@/lib/analytics";
 import BarChartCard from "./BartChartCard";
+
+// ----------- ORDERS (pour garder l’ordre “questionnaire”) -----------
+
+const ORDER_Q1_AVANT = [
+  "Très bien informé·e",
+  "Plutôt informé·e",
+  "Peu informé·e",
+  "Pas du tout informé·e",
+];
 
 const ORDER_Q2_AVANT = [
   "Favorable",
@@ -10,11 +19,24 @@ const ORDER_Q2_AVANT = [
   "Opposé·e",
 ];
 
-const ORDER_Q1_AVANT = [
-  "Très bien informé·e",
-  "Plutôt informé·e",
-  "Peu informé·e",
-  "Pas du tout informé·e",
+const ORDER_Q3_AVANT = ["Oui", "Non"];
+const ORDER_Q4_AVANT = ["Oui", "Non"];
+
+const ORDER_Q5_AVANT = [
+  "Manque d’information",
+  "Peur / appréhension",
+  "Raisons religieuses ou culturelles",
+  "Manque de discussion avec les proches",
+  "Méfiance vis-à-vis du système médical",
+  "Sujet trop éloigné de mes préoccupations",
+  "Autre",
+];
+
+const ORDER_Q1_APRES = [
+  "D’apprendre des choses nouvelles",
+  "De mieux comprendre le don d’organes",
+  "De faire évoluer mon point de vue",
+  "Non",
 ];
 
 const ORDER_Q2_APRES = [
@@ -23,63 +45,15 @@ const ORDER_Q2_APRES = [
   "Plus réservée qu’avant",
 ];
 
+const ORDER_Q3_APRES = [
+  "Du don d’organes",
+  "De la greffe",
+  "Du rôle des familles",
+  "Des idées reçues autour du don",
+];
+
 const ORDER_Q4_APRES = ["Oui", "Peut-être", "Non"];
-
-type Row = { label: string; value: number };
-
-function toTableRows(counts: Record<string, number>, order?: string[]): Row[] {
-  const labels = order?.length ? order : Object.keys(counts).sort();
-  return labels.map((label) => ({ label, value: counts[label] ?? 0 }));
-}
-
-function RecapTable({
-  title,
-  total,
-  rows,
-}: {
-  title: string;
-  total: number;
-  rows: Row[];
-}) {
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        <h3 className="font-medium">{title}</h3>
-        <div className="text-xs text-slate-500">Total: {total}</div>
-      </div>
-
-      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
-            <tr>
-              <th className="px-4 py-2 text-left font-medium">Réponse</th>
-              <th className="px-4 py-2 text-right font-medium">Nb</th>
-              <th className="px-4 py-2 text-right font-medium">%</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.label} className="border-t border-slate-200">
-                <td className="px-4 py-2">{r.label}</td>
-                <td className="px-4 py-2 text-right tabular-nums">{r.value}</td>
-                <td className="px-4 py-2 text-right tabular-nums">
-                  {percent(r.value, total)}%
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr className="border-t border-slate-200">
-                <td className="px-4 py-3 text-sm text-slate-500" colSpan={3}>
-                  Aucune donnée
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
+const ORDER_Q5_APRES = ["Oui", "Non"];
 
 export default async function InterventionStatsPage({
   params,
@@ -96,14 +70,16 @@ export default async function InterventionStatsPage({
     .eq("id", id)
     .single();
 
+  // ✅ AVANT : on prend toutes les questions
   const { data: avant } = await sb
     .from("reponses_avant")
-    .select("q2_position, q1_info_level")
+    .select("q1_info_level, q2_position, q3_consentement, q4_discussion, q5_reticences, q5_autre")
     .eq("intervention_id", id);
 
+  // ✅ APRÈS : on prend toutes les questions
   const { data: apres } = await sb
     .from("reponses_apres")
-    .select("q2_position, q4_aisance")
+    .select("q1_apports, q2_position, q3_comprehension, q4_aisance, q5_suivre, email")
     .eq("intervention_id", id);
 
   const nbAvant = avant?.length ?? 0;
@@ -111,6 +87,7 @@ export default async function InterventionStatsPage({
 
   const completion = percent(nbApres, nbAvant);
 
+  // ✅ Comparaison (MVP demandé)
   const favorablesAvant = (avant ?? []).filter(
     (r) => r.q2_position === "Favorable" || r.q2_position === "Plutôt favorable"
   ).length;
@@ -123,22 +100,37 @@ export default async function InterventionStatsPage({
 
   const deltaPoints = pctPlusFavorablesApres - pctFavorablesAvant;
 
-  // ✅ Distributions pour graphs
-  const q2AvantCounts = countBy(avant ?? [], "q2_position");
+  // ----------- COUNTS (1 par question) -----------
+
+  // AVANT
   const q1AvantCounts = countBy(avant ?? [], "q1_info_level");
+  const q2AvantCounts = countBy(avant ?? [], "q2_position");
+  const q3AvantCounts = countBy(avant ?? [], "q3_consentement");
+  const q4AvantCounts = countBy(avant ?? [], "q4_discussion");
+  const q5AvantCounts = countMulti(avant ?? [], "q5_reticences");
+
+  // APRÈS
+  const q1ApresCounts = countBy(apres ?? [], "q1_apports");
   const q2ApresCounts = countBy(apres ?? [], "q2_position");
+  const q3ApresCounts = countMulti(apres ?? [], "q3_comprehension");
   const q4ApresCounts = countBy(apres ?? [], "q4_aisance");
+  const q5ApresCounts = countBy(apres ?? [], "q5_suivre");
 
-  const q2AvantData = toChartData(q2AvantCounts, ORDER_Q2_AVANT);
+  // ----------- CHART DATA -----------
+
+  // AVANT
   const q1AvantData = toChartData(q1AvantCounts, ORDER_Q1_AVANT);
-  const q2ApresData = toChartData(q2ApresCounts, ORDER_Q2_APRES);
-  const q4ApresData = toChartData(q4ApresCounts, ORDER_Q4_APRES);
+  const q2AvantData = toChartData(q2AvantCounts, ORDER_Q2_AVANT);
+  const q3AvantData = toChartData(q3AvantCounts, ORDER_Q3_AVANT);
+  const q4AvantData = toChartData(q4AvantCounts, ORDER_Q4_AVANT);
+  const q5AvantData = toChartData(q5AvantCounts, ORDER_Q5_AVANT);
 
-  // ✅ Rows pour tables
-  const q1AvantRows = toTableRows(q1AvantCounts, ORDER_Q1_AVANT);
-  const q2AvantRows = toTableRows(q2AvantCounts, ORDER_Q2_AVANT);
-  const q2ApresRows = toTableRows(q2ApresCounts, ORDER_Q2_APRES);
-  const q4ApresRows = toTableRows(q4ApresCounts, ORDER_Q4_APRES);
+  // APRÈS
+  const q1ApresData = toChartData(q1ApresCounts, ORDER_Q1_APRES);
+  const q2ApresData = toChartData(q2ApresCounts, ORDER_Q2_APRES);
+  const q3ApresData = toChartData(q3ApresCounts, ORDER_Q3_APRES);
+  const q4ApresData = toChartData(q4ApresCounts, ORDER_Q4_APRES);
+  const q5ApresData = toChartData(q5ApresCounts, ORDER_Q5_APRES);
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-8">
@@ -160,12 +152,12 @@ export default async function InterventionStatsPage({
         </a>
       </div>
 
-      {/* Cards KPI */}
+      {/* KPI */}
       <div className="mt-8 grid gap-4 md:grid-cols-4">
+        <Card title="Participants (MVP)" value={nbAvant} />
         <Card title="Réponses AVANT" value={nbAvant} />
         <Card title="Réponses APRÈS" value={nbApres} />
         <Card title="Taux de complétion" value={`${completion}%`} />
-        <Card title="% Favorables AVANT" value={`${pctFavorablesAvant}%`} />
       </div>
 
       {/* Comparaison */}
@@ -173,8 +165,8 @@ export default async function InterventionStatsPage({
         <h2 className="text-lg font-medium">Comparaison AVANT / APRÈS</h2>
 
         <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <Metric title="Favorables AVANT" value={`${pctFavorablesAvant}%`} />
-          <Metric title="Plus favorables APRÈS" value={`${pctPlusFavorablesApres}%`} />
+          <Metric title="% Favorables AVANT" value={`${pctFavorablesAvant}%`} />
+          <Metric title="% Plus favorables APRÈS" value={`${pctPlusFavorablesApres}%`} />
           <Metric
             title="Évolution"
             value={`${deltaPoints > 0 ? "+" : ""}${deltaPoints} pts`}
@@ -186,42 +178,27 @@ export default async function InterventionStatsPage({
         </p>
       </section>
 
-      {/* Graphiques */}
-      <div className="mt-8 grid gap-6 md:grid-cols-2">
-        <BarChartCard
-          title="AVANT — Position sur le don (Q2)"
-          data={q2AvantData}
-          total={nbAvant}
-        />
-        <BarChartCard
-          title="AVANT — Niveau d’info (Q1)"
-          data={q1AvantData}
-          total={nbAvant}
-        />
-        <BarChartCard
-          title="APRÈS — Position après sensibilisation (Q2)"
-          data={q2ApresData}
-          total={nbApres}
-        />
-        <BarChartCard
-          title="APRÈS — Aisance pour en parler (Q4)"
-          data={q4ApresData}
-          total={nbApres}
-        />
-      </div>
-
-      {/* ✅ RECAP TABLEAUX */}
+      {/* ✅ AVANT : 5 graphs */}
       <section className="mt-10">
-        <h2 className="text-lg font-semibold">Récapitulatif (tableau)</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Nombre et pourcentages par réponse — pour une lecture rapide.
-        </p>
-
+        <h2 className="text-lg font-semibold">Résultats — AVANT l’intervention</h2>
         <div className="mt-6 grid gap-6 md:grid-cols-2">
-          <RecapTable title="AVANT — Q1 Niveau d’info" total={nbAvant} rows={q1AvantRows} />
-          <RecapTable title="AVANT — Q2 Position" total={nbAvant} rows={q2AvantRows} />
-          <RecapTable title="APRÈS — Q2 Position" total={nbApres} rows={q2ApresRows} />
-          <RecapTable title="APRÈS — Q4 Aisance" total={nbApres} rows={q4ApresRows} />
+          <BarChartCard title="AVANT — Q1 Niveau d’info" data={q1AvantData} total={nbAvant} />
+          <BarChartCard title="AVANT — Q2 Position" data={q2AvantData} total={nbAvant} />
+          <BarChartCard title="AVANT — Q3 Consentement présumé" data={q3AvantData} total={nbAvant} />
+          <BarChartCard title="AVANT — Q4 Discussion avec proches" data={q4AvantData} total={nbAvant} />
+          <BarChartCard title="AVANT — Q5 Réticences (multi)" data={q5AvantData} total={nbAvant} />
+        </div>
+      </section>
+
+      {/* ✅ APRÈS : 5 graphs */}
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold">Résultats — APRÈS l’intervention</h2>
+        <div className="mt-6 grid gap-6 md:grid-cols-2">
+          <BarChartCard title="APRÈS — Q1 Apports" data={q1ApresData} total={nbApres} />
+          <BarChartCard title="APRÈS — Q2 Position après" data={q2ApresData} total={nbApres} />
+          <BarChartCard title="APRÈS — Q3 Compréhension (multi)" data={q3ApresData} total={nbApres} />
+          <BarChartCard title="APRÈS — Q4 Aisance" data={q4ApresData} total={nbApres} />
+          <BarChartCard title="APRÈS — Q5 Suivre Greff’Up" data={q5ApresData} total={nbApres} />
         </div>
       </section>
     </main>
