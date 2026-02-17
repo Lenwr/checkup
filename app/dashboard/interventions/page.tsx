@@ -36,7 +36,7 @@ export default async function InterventionsPage() {
         {interventions.length === 0 && (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
             <p className="text-sm text-slate-500">
-              Aucune intervention enregistrée.
+              Aucune intervention enregistrée
             </p>
           </div>
         )}
