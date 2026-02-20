@@ -1,24 +1,38 @@
 @import "tailwindcss";
 
 :root{
-  --bg: #F8FAF9;
+  /* Greff'Up brand */
+  --greff-50:  #F3FBF4;
+  --greff-100: #E3F6E6;
+  --greff-200: #C4ECCB;
+  --greff-300: #98DEA4;
+  --greff-400: #6CCD7B;
+  --greff-500: #2E7D32;
+  --greff-600: #1B5E20;
+  --greff-700: #144A19;
+
+  /* App tokens */
+  --background: #F8FAF9;
+  --foreground: #0B0F0C;
   --card: #FFFFFF;
-  --text: #0B0F0C;
   --muted: #64748B;
   --border: rgba(15, 23, 42, 0.12);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted);
+  --color-card: var(--card);
+  --color-border: var(--border);
 }
 
 html, body {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--background);
+  color: var(--foreground);
 }
 
+/* optionnel: utilitaires */
 .card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 14px;
-}
-
-.btn-primary {
-  background: var(--greff-600);
+  border-radius: 20px;
 }
