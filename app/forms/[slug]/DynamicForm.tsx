@@ -49,8 +49,14 @@ export default function DynamicForm({
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  function toggleCheckboxValue(fieldKey: string, value: string, checked: boolean) {
-    const prev = Array.isArray(values[fieldKey]) ? (values[fieldKey] as string[]) : [];
+  function toggleCheckboxValue(
+    fieldKey: string,
+    value: string,
+    checked: boolean,
+  ) {
+    const prev = Array.isArray(values[fieldKey])
+      ? (values[fieldKey] as string[])
+      : [];
 
     if (checked) {
       if (!prev.includes(value)) {
@@ -61,7 +67,7 @@ export default function DynamicForm({
 
     setValue(
       fieldKey,
-      prev.filter((item) => item !== value)
+      prev.filter((item) => item !== value),
     );
   }
 
@@ -163,7 +169,9 @@ export default function DynamicForm({
         }
 
         if (q.type === "checkbox") {
-          const checkedValues = Array.isArray(currentValue) ? (currentValue as string[]) : [];
+          const checkedValues = Array.isArray(currentValue)
+            ? (currentValue as string[])
+            : [];
 
           return (
             <section key={q.id} className="space-y-3">
@@ -180,7 +188,11 @@ export default function DynamicForm({
                     value={opt.value}
                     checked={checkedValues.includes(opt.value)}
                     onChange={(e) =>
-                      toggleCheckboxValue(q.field_key, opt.value, e.target.checked)
+                      toggleCheckboxValue(
+                        q.field_key,
+                        opt.value,
+                        e.target.checked,
+                      )
                     }
                   />
                   <span>{opt.label}</span>
@@ -243,7 +255,7 @@ export default function DynamicForm({
               <input
                 type="number"
                 className="w-full rounded-md border p-2"
-                value={currentValue ?? ""}
+                value={typeof currentValue === "number" ? currentValue : ""}
                 placeholder={q.placeholder ?? ""}
                 min={q.min_value ?? undefined}
                 max={q.max_value ?? undefined}
@@ -251,7 +263,7 @@ export default function DynamicForm({
                 onChange={(e) =>
                   setValue(
                     q.field_key,
-                    e.target.value === "" ? "" : Number(e.target.value)
+                    e.target.value === "" ? "" : Number(e.target.value),
                   )
                 }
                 required={q.required}

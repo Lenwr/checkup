@@ -3,6 +3,17 @@ import { toQrDataUrl } from "@/lib/supabase/qr";
 import DeleteInterventionButton from "./DeleteInterventionButton";
 import Link from "next/link";
 
+type FormRef = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+function firstForm(value: FormRef | FormRef[] | null | undefined): FormRef | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
+
 export default async function InterventionDetailPage({
   params,
 }: {
@@ -31,14 +42,17 @@ export default async function InterventionDetailPage({
     return <main className="p-6">Intervention introuvable</main>;
   }
 
+  const avantForm = firstForm(it.avant_form as FormRef | FormRef[] | null);
+  const apresForm = firstForm(it.apres_form as FormRef | FormRef[] | null);
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-  const avantUrl = it.avant_form?.slug
-    ? `${baseUrl}/forms/${it.avant_form.slug}?intervention=${it.slug}`
+  const avantUrl = avantForm?.slug
+    ? `${baseUrl}/forms/${avantForm.slug}?intervention=${it.slug}`
     : null;
 
-  const apresUrl = it.apres_form?.slug
-    ? `${baseUrl}/forms/${it.apres_form.slug}?intervention=${it.slug}`
+  const apresUrl = apresForm?.slug
+    ? `${baseUrl}/forms/${apresForm.slug}?intervention=${it.slug}`
     : null;
 
   const [qrAvant, qrApres] = await Promise.all([
@@ -56,10 +70,10 @@ export default async function InterventionDetailPage({
 
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
         <span className="rounded-full border px-2 py-1">
-          AVANT : {it.avant_form?.name ?? "Non défini"}
+          AVANT : {avantForm?.name ?? "Non défini"}
         </span>
         <span className="rounded-full border px-2 py-1">
-          APRÈS : {it.apres_form?.name ?? "Non défini"}
+          APRÈS : {apresForm?.name ?? "Non défini"}
         </span>
       </div>
 
@@ -74,7 +88,7 @@ export default async function InterventionDetailPage({
               </p>
 
               <p className="mt-2 text-xs text-slate-500">
-                Formulaire : {it.avant_form?.name}
+                Formulaire : {avantForm?.name}
               </p>
 
               <a
@@ -103,7 +117,7 @@ export default async function InterventionDetailPage({
               </p>
 
               <p className="mt-2 text-xs text-slate-500">
-                Formulaire : {it.apres_form?.name}
+                Formulaire : {apresForm?.name}
               </p>
 
               <a
