@@ -1,190 +1,142 @@
-import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
-import { percent } from "@/lib/analytics";
 import { toQrDataUrl } from "@/lib/supabase/qr";
+import DeleteInterventionButton from "./DeleteInterventionButton";
+import Link from "next/link";
 
-export default async function DashboardHome() {
+export default async function InterventionDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+
   const sb = supabaseServer();
 
-  // 1️⃣ Récupérer interventions
-  const { data: interventions } = await sb
+  const { data: it, error } = await sb
     .from("interventions")
-    .select("id, slug, etablissement, date, lieu, type_public")
-    .order("date", { ascending: false });
+    .select(`
+      id,
+      slug,
+      date,
+      etablissement,
+      type_public,
+      lieu,
+      avant_form:avant_form_id ( id, name, slug ),
+      apres_form:apres_form_id ( id, name, slug )
+    `)
+    .eq("id", id)
+    .single();
 
-  const safeInterventions = interventions ?? [];
-  const ids = safeInterventions.map((i) => i.id);
+  if (error || !it) {
+    return <main className="p-6">Intervention introuvable</main>;
+  }
 
-  // 2️⃣ Compter AVANT par intervention
-  const { data: avantCounts } = await sb
-    .from("reponses_avant")
-    .select("intervention_id")
-    .in("intervention_id", ids);
-
-  // 3️⃣ Compter APRÈS par intervention
-  const { data: apresCounts } = await sb
-    .from("reponses_apres")
-    .select("intervention_id")
-    .in("intervention_id", ids);
-
-  const countByIntervention = (rows: any[]) =>
-    rows.reduce((acc: Record<string, number>, row: any) => {
-      acc[row.intervention_id] = (acc[row.intervention_id] ?? 0) + 1;
-      return acc;
-    }, {});
-
-  const avantMap = countByIntervention(avantCounts ?? []);
-  const apresMap = countByIntervention(apresCounts ?? []);
-
-  // 4️⃣ Générer les QR codes pour chaque intervention
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-  const qrEntries = await Promise.all(
-    safeInterventions.map(async (it) => {
-      const avantUrl = `${baseUrl}/avant/${it.slug}`;
-      const apresUrl = `${baseUrl}/apres/${it.slug}`;
+  const avantUrl = it.avant_form?.slug
+    ? `${baseUrl}/forms/${it.avant_form.slug}?intervention=${it.slug}`
+    : null;
 
-      const [qrAvant, qrApres] = await Promise.all([
-        toQrDataUrl(avantUrl),
-        toQrDataUrl(apresUrl),
-      ]);
+  const apresUrl = it.apres_form?.slug
+    ? `${baseUrl}/forms/${it.apres_form.slug}?intervention=${it.slug}`
+    : null;
 
-      return [
-        it.id,
-        {
-          avantUrl,
-          apresUrl,
-          qrAvant,
-          qrApres,
-        },
-      ] as const;
-    })
-  );
-
-  const qrMap = Object.fromEntries(qrEntries);
+  const [qrAvant, qrApres] = await Promise.all([
+    avantUrl ? toQrDataUrl(avantUrl) : Promise.resolve(null),
+    apresUrl ? toQrDataUrl(apresUrl) : Promise.resolve(null),
+  ]);
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
-      <h1 className="text-2xl font-semibold">Vue générale</h1>
+    <main className="mx-auto max-w-4xl p-6">
+      <h1 className="text-2xl font-semibold">{it.etablissement}</h1>
 
-      <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-600">
-            <tr>
-              <th className="px-4 py-3">Établissement</th>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">AVANT</th>
-              <th className="px-4 py-3">APRÈS</th>
-              <th className="px-4 py-3">Complétion</th>
-              <th className="px-4 py-3">QR AVANT</th>
-              <th className="px-4 py-3">QR APRÈS</th>
-              <th className="px-4 py-3">Action</th>
-            </tr>
-          </thead>
+      <p className="mt-1 text-muted-foreground">
+        {it.date} • {it.lieu} • {it.type_public} • slug: {it.slug}
+      </p>
 
-          <tbody>
-            {safeInterventions.map((it) => {
-              const nbAvant = avantMap[it.id] ?? 0;
-              const nbApres = apresMap[it.id] ?? 0;
-              const completion = percent(nbApres, nbAvant);
-              const qr = qrMap[it.id];
-
-              return (
-                <tr key={it.id} className="border-t align-top">
-                  <td className="px-4 py-3 font-medium">
-                    <div>{it.etablissement}</div>
-                    <div className="mt-1 text-xs text-slate-500">
-                      {it.lieu} • {it.type_public}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-400 font-mono">
-                      {it.slug}
-                    </div>
-                  </td>
-
-                  <td className="px-4 py-3 text-slate-500">{it.date}</td>
-
-                  <td className="px-4 py-3">{nbAvant}</td>
-                  <td className="px-4 py-3">{nbApres}</td>
-                  <td className="px-4 py-3">{completion}%</td>
-
-                  <td className="px-4 py-3">
-                    {qr && (
-                      <div className="flex flex-col gap-2">
-                        <a
-                          href={qr.avantUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs text-blue-600 hover:underline break-all"
-                        >
-                          Ouvrir lien
-                        </a>
-
-                        <a
-                          href={qr.qrAvant}
-                          download={`qr-avant-${it.slug}.png`}
-                          className="inline-block"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={qr.qrAvant}
-                            alt={`QR AVANT ${it.etablissement}`}
-                            className="h-20 w-20 cursor-pointer rounded border"
-                          />
-                        </a>
-                      </div>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-3">
-                    {qr && (
-                      <div className="flex flex-col gap-2">
-                        <a
-                          href={qr.apresUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs text-blue-600 hover:underline break-all"
-                        >
-                          Ouvrir lien
-                        </a>
-
-                        <a
-                          href={qr.qrApres}
-                          download={`qr-apres-${it.slug}.png`}
-                          className="inline-block"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={qr.qrApres}
-                            alt={`QR APRÈS ${it.etablissement}`}
-                            className="h-20 w-20 cursor-pointer rounded border"
-                          />
-                        </a>
-                      </div>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/dashboard/interventions/${it.id}/stats`}
-                      className="text-greff-600 hover:underline"
-                    >
-                      Voir stats →
-                    </Link>
-                  </td>
-                </tr>
-              );
-            })}
-
-            {safeInterventions.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
-                  Aucune intervention trouvée.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+        <span className="rounded-full border px-2 py-1">
+          AVANT : {it.avant_form?.name ?? "Non défini"}
+        </span>
+        <span className="rounded-full border px-2 py-1">
+          APRÈS : {it.apres_form?.name ?? "Non défini"}
+        </span>
       </div>
+
+      <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <section className="rounded-md border p-4">
+          <h2 className="font-medium">QR — AVANT</h2>
+
+          {avantUrl && qrAvant ? (
+            <>
+              <p className="mt-1 break-all text-sm text-muted-foreground">
+                {avantUrl}
+              </p>
+
+              <p className="mt-2 text-xs text-slate-500">
+                Formulaire : {it.avant_form?.name}
+              </p>
+
+              <a
+                href={qrAvant}
+                download={`qr-avant-${it.slug}.png`}
+                className="inline-block"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="mt-4 cursor-pointer" src={qrAvant} alt="QR Avant" />
+              </a>
+            </>
+          ) : (
+            <p className="mt-2 text-sm text-slate-500">
+              Aucun formulaire AVANT lié à cette intervention.
+            </p>
+          )}
+        </section>
+
+        <section className="rounded-md border p-4">
+          <h2 className="font-medium">QR — APRÈS</h2>
+
+          {apresUrl && qrApres ? (
+            <>
+              <p className="mt-1 break-all text-sm text-muted-foreground">
+                {apresUrl}
+              </p>
+
+              <p className="mt-2 text-xs text-slate-500">
+                Formulaire : {it.apres_form?.name}
+              </p>
+
+              <a
+                href={qrApres}
+                download={`qr-apres-${it.slug}.png`}
+                className="inline-block"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="mt-4 cursor-pointer" src={qrApres} alt="QR Après" />
+              </a>
+            </>
+          ) : (
+            <p className="mt-2 text-sm text-slate-500">
+              Aucun formulaire APRÈS lié à cette intervention.
+            </p>
+          )}
+        </section>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link
+          href={`/dashboard/interventions/${it.id}/stats`}
+          className="rounded-md border px-4 py-2"
+        >
+          📊 Voir stats
+        </Link>
+
+        <Link href="/dashboard/interventions" className="rounded-md border px-4 py-2">
+          ← Retour liste
+        </Link>
+      </div>
+
+      <DeleteInterventionButton id={it.id} variant="detail" />
     </main>
   );
 }

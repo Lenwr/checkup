@@ -1,59 +1,163 @@
+import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
-import { percent, countBy, countMulti, toChartData } from "@/lib/analytics";
 import BarChartCard from "./BartChartCard";
+import RecapQuestionTable from "./RecapQuestionTable";
 
-// ----------- ORDERS (pour garder l’ordre “questionnaire”) -----------
+type FormRow = {
+  id: string;
+  name: string;
+  slug: string;
+  kind: string;
+};
 
-const ORDER_Q1_AVANT = [
-  "Très bien informé·e",
-  "Plutôt informé·e",
-  "Peu informé·e",
-  "Pas du tout informé·e",
-];
+type QuestionRow = {
+  id: string;
+  form_id: string;
+  label: string;
+  field_key: string;
+  type: string;
+  required: boolean;
+  sort_order: number;
+  options: { label: string; value: string }[] | null;
+  min_value: number | null;
+  max_value: number | null;
+  step_value: number | null;
+};
 
-const ORDER_Q2_AVANT = [
-  "Favorable",
-  "Plutôt favorable",
-  "Indécis·e",
-  "Plutôt opposé·e",
-  "Opposé·e",
-];
+type SubmissionRow = {
+  id: string;
+  form_id: string;
+};
 
-const ORDER_Q3_AVANT = ["Oui", "Non"];
-const ORDER_Q4_AVANT = ["Oui", "Non"];
+type AnswerRow = {
+  submission_id: string;
+  question_id: string;
+  value: unknown;
+};
 
-const ORDER_Q5_AVANT = [
-  "Manque d’information",
-  "Peur / appréhension",
-  "Raisons religieuses ou culturelles",
-  "Manque de discussion avec les proches",
-  "Méfiance vis-à-vis du système médical",
-  "Sujet trop éloigné de mes préoccupations",
-  "Autre",
-];
+function countValues(values: string[]) {
+  return values.reduce(
+    (acc, value) => {
+      acc[value] = (acc[value] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+}
 
-const ORDER_Q1_APRES = [
-  "D’apprendre des choses nouvelles",
-  "De mieux comprendre le don d’organes",
-  "De faire évoluer mon point de vue",
-  "Non",
-];
+function toRows(counts: Record<string, number>, orderedLabels?: string[]) {
+  const entries = Object.entries(counts);
 
-const ORDER_Q2_APRES = [
-  "Plus favorable qu’avant",
-  "Inchangée",
-  "Plus réservée qu’avant",
-];
+  if (orderedLabels && orderedLabels.length > 0) {
+    const ordered = orderedLabels.map((label) => ({
+      label,
+      value: counts[label] ?? 0,
+    }));
 
-const ORDER_Q3_APRES = [
-  "Du don d’organes",
-  "De la greffe",
-  "Du rôle des familles",
-  "Des idées reçues autour du don",
-];
+    const remaining = entries
+      .filter(([label]) => !orderedLabels.includes(label))
+      .map(([label, value]) => ({ label, value }));
 
-const ORDER_Q4_APRES = ["Oui", "Peut-être", "Non"];
-const ORDER_Q5_APRES = ["Oui", "Non"];
+    return [...ordered, ...remaining];
+  }
+
+  return entries
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
+}
+
+function normalizeSingleValue(
+  value: unknown,
+  question: QuestionRow
+): string | null {
+  if (value === null || value === undefined || value === "") return null;
+
+  if (question.type === "yesno") {
+    if (value === true) return "Oui";
+    if (value === false) return "Non";
+    if (value === "Oui" || value === "Non") return value;
+  }
+
+  if (
+    question.type === "radio" ||
+    question.type === "select" ||
+    question.type === "checkbox"
+  ) {
+    const options = Array.isArray(question.options) ? question.options : [];
+    const optionMap = Object.fromEntries(
+      options.map((opt) => [opt.value, opt.label])
+    );
+
+    if (typeof value === "string") {
+      return optionMap[value] ?? value;
+    }
+  }
+
+  if (
+    question.type === "scale" ||
+    question.type === "rating" ||
+    question.type === "number"
+  ) {
+    return String(value);
+  }
+
+  if (question.type === "date" && typeof value === "string") {
+    return value;
+  }
+
+  if (
+    question.type === "text" ||
+    question.type === "textarea" ||
+    question.type === "email"
+  ) {
+    return typeof value === "string" ? value : String(value);
+  }
+
+  return typeof value === "string" ? value : String(value);
+}
+
+function extractValues(answer: AnswerRow, question: QuestionRow): string[] {
+  if (question.type === "checkbox") {
+    if (!Array.isArray(answer.value)) return [];
+    return answer.value
+      .map((item) => normalizeSingleValue(item, question))
+      .filter(Boolean) as string[];
+  }
+
+  const normalized = normalizeSingleValue(answer.value, question);
+  return normalized ? [normalized] : [];
+}
+
+function orderedLabelsForQuestion(question: QuestionRow): string[] | undefined {
+  if (question.type === "yesno") {
+    return ["Oui", "Non"];
+  }
+
+  if (
+    question.type === "radio" ||
+    question.type === "select" ||
+    question.type === "checkbox"
+  ) {
+    return Array.isArray(question.options)
+      ? question.options.map((opt) => opt.label)
+      : undefined;
+  }
+
+  if (question.type === "scale" || question.type === "rating") {
+    const min = question.min_value ?? 1;
+    const max = question.max_value ?? 5;
+    const step = question.step_value ?? 1;
+    const labels: string[] = [];
+
+    for (let n = min; n <= max; n += step) {
+      labels.push(String(n));
+    }
+
+    return labels;
+  }
+
+  return undefined;
+}
 
 export default async function InterventionStatsPage({
   params,
@@ -61,87 +165,183 @@ export default async function InterventionStatsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-
   const sb = supabaseServer();
 
-  const { data: it } = await sb
+  const { data: intervention, error: interventionError } = await sb
     .from("interventions")
-    .select("id, slug, date, etablissement, lieu, type_public")
+    .select(
+      "id, slug, date, etablissement, lieu, type_public, avant_form_id, apres_form_id"
+    )
     .eq("id", id)
     .single();
 
-  // ✅ AVANT : on prend toutes les questions
-  const { data: avant } = await sb
-    .from("reponses_avant")
-    .select("q1_info_level, q2_position, q3_consentement, q4_discussion, q5_reticences, q5_autre")
-    .eq("intervention_id", id);
+  if (interventionError || !intervention) {
+    return <main className="p-6">Intervention introuvable</main>;
+  }
 
-  // ✅ APRÈS : on prend toutes les questions
-  const { data: apres } = await sb
-    .from("reponses_apres")
-    .select("q1_apports, q2_position, q3_comprehension, q4_aisance, q5_suivre, email")
-    .eq("intervention_id", id);
+  const formIds = [intervention.avant_form_id, intervention.apres_form_id].filter(
+    Boolean
+  ) as string[];
 
-  const nbAvant = avant?.length ?? 0;
-  const nbApres = apres?.length ?? 0;
+  const { data: formsData, error: formsError } =
+    formIds.length > 0
+      ? await sb
+          .from("forms")
+          .select("id, name, slug, kind")
+          .in("id", formIds)
+      : { data: [], error: null };
 
-  const completion = percent(nbApres, nbAvant);
+  if (formsError) {
+    return <main className="p-6">Erreur chargement formulaires</main>;
+  }
 
-  // ✅ Comparaison (MVP demandé)
-  const favorablesAvant = (avant ?? []).filter(
-    (r) => r.q2_position === "Favorable" || r.q2_position === "Plutôt favorable"
-  ).length;
-  const pctFavorablesAvant = percent(favorablesAvant, nbAvant);
+  const forms = (formsData ?? []) as FormRow[];
+  const formMap = Object.fromEntries(forms.map((form) => [form.id, form]));
 
-  const plusFavorablesApres = (apres ?? []).filter(
-    (r) => r.q2_position === "Plus favorable qu’avant"
-  ).length;
-  const pctPlusFavorablesApres = percent(plusFavorablesApres, nbApres);
+  const { data: questionsData, error: questionsError } =
+    formIds.length > 0
+      ? await sb
+          .from("form_questions")
+          .select(
+            "id, form_id, label, field_key, type, required, sort_order, options, min_value, max_value, step_value"
+          )
+          .in("form_id", formIds)
+          .order("sort_order", { ascending: true })
+      : { data: [], error: null };
 
-  const deltaPoints = pctPlusFavorablesApres - pctFavorablesAvant;
+  if (questionsError) {
+    return <main className="p-6">Erreur chargement questions</main>;
+  }
 
-  // ----------- COUNTS (1 par question) -----------
+  const questions = (questionsData ?? []) as QuestionRow[];
 
-  // AVANT
-  const q1AvantCounts = countBy(avant ?? [], "q1_info_level");
-  const q2AvantCounts = countBy(avant ?? [], "q2_position");
-  const q3AvantCounts = countBy(avant ?? [], "q3_consentement");
-  const q4AvantCounts = countBy(avant ?? [], "q4_discussion");
-  const q5AvantCounts = countMulti(avant ?? [], "q5_reticences");
+  const { data: submissionsData, error: submissionsError } =
+    formIds.length > 0
+      ? await sb
+          .from("form_submissions")
+          .select("id, form_id")
+          .eq("intervention_id", id)
+          .in("form_id", formIds)
+      : { data: [], error: null };
 
-  // APRÈS
-  const q1ApresCounts = countBy(apres ?? [], "q1_apports");
-  const q2ApresCounts = countBy(apres ?? [], "q2_position");
-  const q3ApresCounts = countMulti(apres ?? [], "q3_comprehension");
-  const q4ApresCounts = countBy(apres ?? [], "q4_aisance");
-  const q5ApresCounts = countBy(apres ?? [], "q5_suivre");
+  if (submissionsError) {
+    return <main className="p-6">Erreur chargement réponses</main>;
+  }
 
-  // ----------- CHART DATA -----------
+  const submissions = (submissionsData ?? []) as SubmissionRow[];
+  const submissionIds = submissions.map((submission) => submission.id);
 
-  // AVANT
-  const q1AvantData = toChartData(q1AvantCounts, ORDER_Q1_AVANT);
-  const q2AvantData = toChartData(q2AvantCounts, ORDER_Q2_AVANT);
-  const q3AvantData = toChartData(q3AvantCounts, ORDER_Q3_AVANT);
-  const q4AvantData = toChartData(q4AvantCounts, ORDER_Q4_AVANT);
-  const q5AvantData = toChartData(q5AvantCounts, ORDER_Q5_AVANT);
+  const { data: answersData, error: answersError } =
+    submissionIds.length > 0
+      ? await sb
+          .from("form_answers")
+          .select("submission_id, question_id, value")
+          .in("submission_id", submissionIds)
+      : { data: [], error: null };
 
-  // APRÈS
-  const q1ApresData = toChartData(q1ApresCounts, ORDER_Q1_APRES);
-  const q2ApresData = toChartData(q2ApresCounts, ORDER_Q2_APRES);
-  const q3ApresData = toChartData(q3ApresCounts, ORDER_Q3_APRES);
-  const q4ApresData = toChartData(q4ApresCounts, ORDER_Q4_APRES);
-  const q5ApresData = toChartData(q5ApresCounts, ORDER_Q5_APRES);
+  if (answersError) {
+    return <main className="p-6">Erreur chargement réponses détaillées</main>;
+  }
+
+  const answers = (answersData ?? []) as AnswerRow[];
+
+  const submissionsByForm = submissions.reduce(
+    (acc, submission) => {
+      acc[submission.form_id] = (acc[submission.form_id] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
+  const answersByQuestion = answers.reduce(
+    (acc, answer) => {
+      if (!acc[answer.question_id]) acc[answer.question_id] = [];
+      acc[answer.question_id].push(answer);
+      return acc;
+    },
+    {} as Record<string, AnswerRow[]>
+  );
+
+  const avantForm = intervention.avant_form_id
+    ? formMap[intervention.avant_form_id]
+    : null;
+
+  const apresForm = intervention.apres_form_id
+    ? formMap[intervention.apres_form_id]
+    : null;
+
+  const avantQuestions = questions.filter(
+    (question) => question.form_id === intervention.avant_form_id
+  );
+
+  const apresQuestions = questions.filter(
+    (question) => question.form_id === intervention.apres_form_id
+  );
+
+  const nbAvant = intervention.avant_form_id
+    ? submissionsByForm[intervention.avant_form_id] ?? 0
+    : 0;
+
+  const nbApres = intervention.apres_form_id
+    ? submissionsByForm[intervention.apres_form_id] ?? 0
+    : 0;
+
+  const completion = nbAvant > 0 ? Math.round((nbApres / nbAvant) * 100) : 0;
+
+  function renderQuestion(question: QuestionRow, total: number) {
+    const questionAnswers = answersByQuestion[question.id] ?? [];
+    const flatValues = questionAnswers.flatMap((answer) =>
+      extractValues(answer, question)
+    );
+    const counts = countValues(flatValues);
+    const rows = toRows(counts, orderedLabelsForQuestion(question));
+
+    const isFreeText =
+      question.type === "text" ||
+      question.type === "textarea" ||
+      question.type === "email" ||
+      question.type === "date";
+
+    if (isFreeText) {
+      return (
+        <RecapQuestionTable
+          key={question.id}
+          title={question.label}
+          total={total}
+          rows={rows}
+        />
+      );
+    }
+
+    return (
+      <BarChartCard
+        key={question.id}
+        title={question.label}
+        data={rows}
+        total={total}
+      />
+    );
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-8">
       <div className="flex items-start justify-between gap-6">
         <div>
           <h1 className="text-2xl font-semibold">
-            {it?.etablissement ?? "Intervention"}
+            {intervention.etablissement}
           </h1>
           <p className="mt-1 text-slate-500">
-            {it?.date} • {it?.lieu} • {it?.type_public}
+            {intervention.date} • {intervention.lieu} • {intervention.type_public}
           </p>
+
+          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+            <span className="rounded-full border px-2 py-1">
+              AVANT : {avantForm?.name ?? "—"}
+            </span>
+            <span className="rounded-full border px-2 py-1">
+              APRÈS : {apresForm?.name ?? "—"}
+            </span>
+          </div>
         </div>
 
         <a
@@ -152,54 +352,55 @@ export default async function InterventionStatsPage({
         </a>
       </div>
 
-      {/* KPI */}
       <div className="mt-8 grid gap-4 md:grid-cols-4">
-        <Card title="Participants (MVP)" value={nbAvant} />
         <Card title="Réponses AVANT" value={nbAvant} />
         <Card title="Réponses APRÈS" value={nbApres} />
         <Card title="Taux de complétion" value={`${completion}%`} />
+        <Card title="Questions totales" value={questions.length} />
       </div>
 
-      {/* Comparaison */}
-      <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-medium">Comparaison AVANT / APRÈS</h2>
-
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <Metric title="% Favorables AVANT" value={`${pctFavorablesAvant}%`} />
-          <Metric title="% Plus favorables APRÈS" value={`${pctPlusFavorablesApres}%`} />
-          <Metric
-            title="Évolution"
-            value={`${deltaPoints > 0 ? "+" : ""}${deltaPoints} pts`}
-          />
-        </div>
-
-        <p className="mt-4 text-sm text-slate-500">
-          Calcul MVP : Favorable + Plutôt favorable (AVANT) vs “Plus favorable qu’avant” (APRÈS).
-        </p>
-      </section>
-
-      {/* ✅ AVANT : 5 graphs */}
       <section className="mt-10">
         <h2 className="text-lg font-semibold">Résultats — AVANT l’intervention</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Formulaire : {avantForm?.name ?? "Non défini"} • Réponses : {nbAvant}
+        </p>
+
         <div className="mt-6 grid gap-6 md:grid-cols-2">
-          <BarChartCard title="AVANT — Q1 Niveau d’info" data={q1AvantData} total={nbAvant} />
-          <BarChartCard title="AVANT — Q2 Position" data={q2AvantData} total={nbAvant} />
-          <BarChartCard title="AVANT — Q3 Consentement présumé" data={q3AvantData} total={nbAvant} />
-          <BarChartCard title="AVANT — Q4 Discussion avec proches" data={q4AvantData} total={nbAvant} />
-          <BarChartCard title="AVANT — Q5 Réticences (multi)" data={q5AvantData} total={nbAvant} />
+          {avantQuestions.length > 0 ? (
+            avantQuestions.map((question) => renderQuestion(question, nbAvant))
+          ) : (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
+              Aucun formulaire AVANT lié ou aucune question.
+            </div>
+          )}
         </div>
       </section>
 
-      {/* ✅ APRÈS : 5 graphs */}
       <section className="mt-10">
         <h2 className="text-lg font-semibold">Résultats — APRÈS l’intervention</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Formulaire : {apresForm?.name ?? "Non défini"} • Réponses : {nbApres}
+        </p>
+
         <div className="mt-6 grid gap-6 md:grid-cols-2">
-          <BarChartCard title="APRÈS — Q1 Apports" data={q1ApresData} total={nbApres} />
-          <BarChartCard title="APRÈS — Q2 Position après" data={q2ApresData} total={nbApres} />
-          <BarChartCard title="APRÈS — Q3 Compréhension (multi)" data={q3ApresData} total={nbApres} />
-          <BarChartCard title="APRÈS — Q4 Aisance" data={q4ApresData} total={nbApres} />
-          <BarChartCard title="APRÈS — Q5 Suivre Greff’Up" data={q5ApresData} total={nbApres} />
+          {apresQuestions.length > 0 ? (
+            apresQuestions.map((question) => renderQuestion(question, nbApres))
+          ) : (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
+              Aucun formulaire APRÈS lié ou aucune question.
+            </div>
+          )}
         </div>
+      </section>
+
+      <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-medium">Note</h2>
+        <p className="mt-3 text-sm text-slate-600">
+          Les anciens indicateurs de comparaison métier basés sur des questions
+          codées en dur ont été retirés ici, car les formulaires sont maintenant
+          dynamiques. Si tu veux, on peut ajouter ensuite un système de
+          “questions repères” pour comparer automatiquement AVANT / APRÈS.
+        </p>
       </section>
     </main>
   );
@@ -210,15 +411,6 @@ function Card({ title, value }: { title: string; value: string | number }) {
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="text-sm text-slate-500">{title}</div>
       <div className="mt-2 text-2xl font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function Metric({ title, value }: { title: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-sm text-slate-500">{title}</div>
-      <div className="mt-2 text-xl font-semibold">{value}</div>
     </div>
   );
 }

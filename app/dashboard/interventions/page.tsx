@@ -7,14 +7,23 @@ export default async function InterventionsPage() {
 
   const { data } = await sb
     .from("interventions")
-    .select("id, slug, date, etablissement, lieu, type_public, created_at")
+    .select(`
+      id,
+      slug,
+      date,
+      etablissement,
+      lieu,
+      type_public,
+      created_at,
+      avant_form:avant_form_id ( id, name, slug ),
+      apres_form:apres_form_id ( id, name, slug )
+    `)
     .order("created_at", { ascending: false });
 
   const interventions = data ?? [];
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-8">
-      {/* HEADER */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Interventions</h1>
@@ -25,13 +34,12 @@ export default async function InterventionsPage() {
 
         <Link
           href="/dashboard/interventions/new"
-          className="rounded-xl bg-greff-600 px-5 py-3 text-sm font-medium text-black shadow-sm hover:bg-greff-700 transition"
+          className="rounded-xl bg-greff-600 px-5 py-3 text-sm font-medium text-black shadow-sm transition hover:bg-greff-700"
         >
           + Nouvelle intervention
         </Link>
       </div>
 
-      {/* LISTE */}
       <div className="mt-8 grid gap-4">
         {interventions.length === 0 && (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
@@ -41,7 +49,7 @@ export default async function InterventionsPage() {
           </div>
         )}
 
-        {interventions.map((it) => (
+        {interventions.map((it: any) => (
           <Link
             key={it.id}
             href={`/dashboard/interventions/${it.id}`}
@@ -49,14 +57,22 @@ export default async function InterventionsPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-lg font-medium group-hover:text-greff-600 transition">
+                <div className="text-lg font-medium transition group-hover:text-greff-600">
                   {it.etablissement}
                 </div>
 
                 <div className="mt-1 text-sm text-slate-500">{it.lieu}</div>
+
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                  <span className="rounded-full border px-2 py-1">
+                    AVANT : {it.avant_form?.name ?? "—"}
+                  </span>
+                  <span className="rounded-full border px-2 py-1">
+                    APRÈS : {it.apres_form?.name ?? "—"}
+                  </span>
+                </div>
               </div>
 
-              {/* Badge + Delete */}
               <div className="flex items-center gap-2">
                 <div className="rounded-full bg-greff-50 px-3 py-1 text-xs font-medium text-greff-700">
                   {it.type_public}
