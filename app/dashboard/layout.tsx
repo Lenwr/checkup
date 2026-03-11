@@ -31,7 +31,7 @@ export default function DashboardLayout({
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-6">
             <Link
-              href="/dashboard/interventions"
+              href="/dashboard/overview"
               className="text-base font-semibold tracking-tight"
             >
               Checkup Impact
@@ -39,19 +39,25 @@ export default function DashboardLayout({
 
             <nav className="flex items-center gap-2">
               <Link
+                href="/dashboard/overview"
+                className="rounded-full border border-black/10 bg-white/70 px-3 py-1 text-sm font-medium text-[color:var(--muted)] transition hover:bg-white hover:text-[var(--foreground)]"
+              >
+                Overview
+              </Link>
+
+              <Link
                 href="/dashboard/interventions"
                 className="rounded-full border border-black/10 bg-white/70 px-3 py-1 text-sm font-medium text-[color:var(--muted)] transition hover:bg-white hover:text-[var(--foreground)]"
               >
                 Interventions
               </Link>
 
-              {/* Exemple si tu ajoutes d'autres onglets */}
-              {/* <Link
-                href="/dashboard/stats"
-                className="rounded-full border border-black/10 bg-white/40 px-3 py-1 text-sm font-medium text-[color:var(--muted)] transition hover:bg-white hover:text-[var(--foreground)]"
+              <Link
+                href="/dashboard/forms"
+                className="rounded-full border border-black/10 bg-white/70 px-3 py-1 text-sm font-medium text-[color:var(--muted)] transition hover:bg-white hover:text-[var(--foreground)]"
               >
-                Stats
-              </Link> */}
+                Formulaires
+              </Link>
             </nav>
           </div>
 

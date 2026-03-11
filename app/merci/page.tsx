@@ -3,7 +3,6 @@ import Link from "next/link";
 export default function MerciPage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[var(--background)]">
-      {/* Background glow + subtle dots */}
       <div className="pointer-events-none absolute inset-0">
         <div
           className="absolute -top-44 left-1/2 h-[720px] w-[980px] -translate-x-1/2 rounded-full blur-3xl opacity-35"
@@ -24,16 +23,13 @@ export default function MerciPage() {
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-3xl items-center px-6 py-14">
         <section className="w-full">
-          {/* Badge */}
           <div className="mb-6 flex justify-center">
             <span className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/70 px-4 py-1 text-xs font-medium text-[color:var(--muted)] backdrop-blur">
               ✅ Soumission validée
             </span>
           </div>
 
-          {/* Card */}
           <div className="rounded-3xl border border-black/10 bg-white/85 p-8 shadow-[0_24px_70px_rgba(0,0,0,0.10)] backdrop-blur-sm md:p-10">
-            {/* Icon bubble */}
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-black/10 bg-white shadow-sm">
               <span className="text-2xl">🙏</span>
             </div>
@@ -47,32 +43,30 @@ export default function MerciPage() {
               l’impact et à améliorer l’accompagnement.
             </p>
 
-            {/* Info strip */}
             <div className="mt-7 rounded-2xl border border-black/10 bg-white/70 p-4 text-sm text-[color:var(--muted)]">
               <div className="flex items-start gap-3">
                 <span className="mt-0.5">🟢</span>
                 <div>
                   <div className="font-medium text-[color:var(--foreground)]">
-                    C’est bon pour nous ✅
+                    Réponse bien envoyée
                   </div>
                   <div className="mt-1">
-                    Tu peux fermer cette page ou retourner au tableau de bord.
+                    Tu peux maintenant fermer cette page. Le formulaire a déjà été transmis.
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Actions */}
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               <Link
-                href="/dashboard/interventions"
+                href="/"
                 className="group relative overflow-hidden rounded-2xl px-4 py-3 text-center font-semibold text-white shadow-md transition"
                 style={{
                   background:
                     "linear-gradient(135deg, var(--greff-600) 0%, var(--greff-500) 55%, var(--greff-400) 100%)",
                 }}
               >
-                <span className="relative z-10">Retour au dashboard</span>
+                <span className="relative z-10">Retour à l’accueil</span>
                 <span
                   className="absolute inset-0 opacity-0 transition group-hover:opacity-100"
                   style={{
@@ -82,15 +76,15 @@ export default function MerciPage() {
                 />
               </Link>
 
-              <Link
-                href="/"
+              <button
+                type="button"
+                onClick={() => window.close()}
                 className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-center font-semibold text-[color:var(--greff-600)] transition hover:bg-white"
               >
-                Accueil
-              </Link>
+                Fermer la page
+              </button>
             </div>
 
-            {/* Tiny footer */}
             <p className="mt-6 text-center text-xs text-[color:var(--muted)]">
               Greff’Up • Check-up Impact
             </p>
