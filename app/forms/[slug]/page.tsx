@@ -5,9 +5,12 @@ export default async function FormPage({
   params,
   searchParams,
 }: {
-  params: { slug: string };
-  searchParams: { intervention?: string };
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ intervention?: string }>;
 }) {
+  const { slug } = await params;
+  const { intervention } = await searchParams;
+
   const sb = supabaseServer();
 
   const { data: form, error } = await sb
@@ -33,12 +36,27 @@ export default async function FormPage({
         step_value
       )
     `)
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .eq("is_active", true)
     .single();
 
   if (error || !form) {
-    return <main className="p-6">Formulaire introuvable</main>;
+    return (
+      <main className="p-6">
+        <div>Formulaire introuvable</div>
+        <pre className="mt-4 text-xs text-slate-500">
+          {JSON.stringify(
+            {
+              slug,
+              intervention,
+              error: error?.message ?? null,
+            },
+            null,
+            2
+          )}
+        </pre>
+      </main>
+    );
   }
 
   const questions = [...(form.form_questions ?? [])].sort(
@@ -55,7 +73,7 @@ export default async function FormPage({
 
       <DynamicForm
         formSlug={form.slug}
-        interventionSlug={searchParams.intervention ?? null}
+        interventionSlug={intervention ?? null}
         questions={questions}
       />
     </main>
