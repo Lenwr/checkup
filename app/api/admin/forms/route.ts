@@ -9,17 +9,22 @@ const FormSchema = z.object({
     .min(2, "Slug trop court")
     .max(80, "Slug trop long")
     .regex(/^[a-z0-9-]+$/, "Slug invalide"),
-  description: z.string().optional().nullable(),
+  description: z.string().nullable().optional(),
   kind: z.enum(["avant", "apres", "autre"]),
-  is_active: z.boolean().default(true),
+  is_active: z.boolean(),
 });
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    console.log("FORM CREATE PAYLOAD", body);
+
     const parsed = FormSchema.safeParse(body);
 
     if (!parsed.success) {
+      console.log("FORM VALIDATION ERROR", parsed.error.flatten());
+
       return NextResponse.json(
         {
           ok: false,
@@ -40,7 +45,10 @@ export async function POST(req: Request) {
 
     if (existing) {
       return NextResponse.json(
-        { ok: false, error: "Un formulaire avec ce slug existe déjà" },
+        {
+          ok: false,
+          error: "Un formulaire avec ce slug existe déjà",
+        },
         { status: 409 }
       );
     }
@@ -57,15 +65,25 @@ export async function POST(req: Request) {
       .select("id, name, slug, kind, is_active")
       .single();
 
-    if (error || !form) {
+    if (error) {
+      console.error("FORM INSERT ERROR", error);
+
       return NextResponse.json(
-        { ok: false, error: error?.message ?? "Erreur création formulaire" },
+        {
+          ok: false,
+          error: error.message,
+        },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ ok: true, form });
+    return NextResponse.json({
+      ok: true,
+      form,
+    });
   } catch (error) {
+    console.error("FORM CREATE CRASH", error);
+
     return NextResponse.json(
       {
         ok: false,

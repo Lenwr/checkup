@@ -37,34 +37,25 @@ export default function NewFormPage() {
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
     setLoading(true);
     setErr(null);
 
-    const finalName = name.trim();
-    const finalSlug = (slug || suggestedSlug).trim();
-    const finalDescription = description.trim() || null;
+    const payload = {
+      name: name.trim(),
+      slug: (slug || suggestedSlug).trim(),
+      description: description.trim() || null,
+      kind,
+      is_active: Boolean(isActive),
+    };
 
-    if (!finalName) {
-      setErr("Le nom est requis");
-      setLoading(false);
-      return;
-    }
-
-    if (!finalSlug) {
-      setErr("Le slug est requis");
+    if (!payload.name || !payload.slug) {
+      setErr("Nom et slug requis");
       setLoading(false);
       return;
     }
 
     try {
-      const payload = {
-        name: finalName,
-        slug: finalSlug,
-        description: finalDescription,
-        kind,
-        is_active: isActive,
-      };
-
       const res = await fetch("/api/admin/forms", {
         method: "POST",
         headers: {
@@ -76,29 +67,24 @@ export default function NewFormPage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok || !data?.ok) {
-        console.log("CREATE FORM ERROR FULL", data);
-        console.log("CREATE FORM FIELD ERRORS", data?.details?.fieldErrors);
+        console.log("CREATE FORM ERROR", data);
 
-        const fieldErrors = data?.details?.fieldErrors ?? {};
+        const fieldError =
+          data?.details?.fieldErrors?.name?.[0] ||
+          data?.details?.fieldErrors?.slug?.[0] ||
+          data?.details?.fieldErrors?.description?.[0] ||
+          data?.details?.fieldErrors?.kind?.[0];
 
-        const firstFieldError =
-          fieldErrors.name?.[0] ||
-          fieldErrors.slug?.[0] ||
-          fieldErrors.description?.[0] ||
-          fieldErrors.kind?.[0] ||
-          data?.details?.formErrors?.[0];
-
-        setErr(firstFieldError ?? data?.error ?? "Erreur serveur");
+        setErr(fieldError ?? data?.error ?? "Erreur serveur");
         setLoading(false);
         return;
       }
 
       router.push(`/dashboard/forms/${data.form.id}`);
-      return;
+      router.refresh();
     } catch (error) {
       setErr(error instanceof Error ? error.message : "Erreur réseau");
       setLoading(false);
-      return;
     }
   }
 
@@ -106,7 +92,11 @@ export default function NewFormPage() {
     <main className="mx-auto max-w-2xl p-6">
       <h1 className="text-2xl font-semibold">Nouveau formulaire</h1>
 
-      {err && <div className="mt-4 rounded-md border p-3 text-sm">{err}</div>}
+      {err && (
+        <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {err}
+        </div>
+      )}
 
       <form onSubmit={submit} className="mt-6 space-y-5">
         <div className="space-y-2">
@@ -129,24 +119,30 @@ export default function NewFormPage() {
             placeholder={suggestedSlug || "questionnaire-avant-lycee"}
             required
           />
+
           <p className="text-xs text-muted-foreground">
-            Slug suggéré : <span className="font-mono">{suggestedSlug}</span>
+            Slug suggéré :{" "}
+            <span className="font-mono">{suggestedSlug}</span>
           </p>
         </div>
 
         <div className="space-y-2">
           <label className="block text-sm font-medium">Description</label>
+
           <textarea
             className="w-full rounded-md border p-2"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description interne ou publique du formulaire"
+            placeholder="Description du formulaire"
             rows={4}
           />
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium">Type de formulaire</label>
+          <label className="block text-sm font-medium">
+            Type de formulaire
+          </label>
+
           <select
             className="w-full rounded-md border p-2"
             value={kind}
