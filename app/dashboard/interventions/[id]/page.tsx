@@ -1,12 +1,14 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import { toQrDataUrl } from "@/lib/supabase/qr";
 import DeleteInterventionButton from "./DeleteInterventionButton";
+import EditFormsInline from "./EditFormsInline";
 import Link from "next/link";
 
 type FormRef = {
   id: string;
   name: string;
   slug: string;
+  kind: "avant" | "apres" | "autre";
 };
 
 function firstForm(value: FormRef | FormRef[] | null | undefined): FormRef | null {
@@ -32,8 +34,8 @@ export default async function InterventionDetailPage({
       etablissement,
       type_public,
       lieu,
-      avant_form:avant_form_id ( id, name, slug ),
-      apres_form:apres_form_id ( id, name, slug )
+      avant_form:avant_form_id ( id, name, slug, kind ),
+      apres_form:apres_form_id ( id, name, slug, kind )
     `)
     .eq("id", id)
     .single();
@@ -41,6 +43,12 @@ export default async function InterventionDetailPage({
   if (error || !it) {
     return <main className="p-6">Intervention introuvable</main>;
   }
+
+  const { data: forms } = await sb
+    .from("forms")
+    .select("id, name, slug, kind")
+    .eq("is_active", true)
+    .order("name");
 
   const avantForm = firstForm(it.avant_form as FormRef | FormRef[] | null);
   const apresForm = firstForm(it.apres_form as FormRef | FormRef[] | null);
@@ -68,15 +76,17 @@ export default async function InterventionDetailPage({
         {it.date} • {it.lieu} • {it.type_public} • slug: {it.slug}
       </p>
 
-      <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-        <span className="rounded-full border px-2 py-1">
-          AVANT : {avantForm?.name ?? "Non défini"}
-        </span>
-        <span className="rounded-full border px-2 py-1">
-          APRÈS : {apresForm?.name ?? "Non défini"}
-        </span>
+      {/* 🔧 MODIFICATION FORMULAIRES */}
+      <div className="mt-6">
+        <EditFormsInline
+          interventionId={it.id}
+          avantFormId={avantForm?.id ?? null}
+          apresFormId={apresForm?.id ?? null}
+          forms={forms ?? []}
+        />
       </div>
 
+      {/* QR CODES */}
       <div className="mt-8 grid gap-6 md:grid-cols-2">
         <section className="rounded-md border p-4">
           <h2 className="font-medium">QR — AVANT</h2>
@@ -91,18 +101,14 @@ export default async function InterventionDetailPage({
                 Formulaire : {avantForm?.name}
               </p>
 
-              <a
-                href={qrAvant}
-                download={`qr-avant-${it.slug}.png`}
-                className="inline-block"
-              >
+              <a href={qrAvant} download={`qr-avant-${it.slug}.png`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img className="mt-4 cursor-pointer" src={qrAvant} alt="QR Avant" />
               </a>
             </>
           ) : (
             <p className="mt-2 text-sm text-slate-500">
-              Aucun formulaire AVANT lié à cette intervention.
+              Aucun formulaire AVANT lié.
             </p>
           )}
         </section>
@@ -120,18 +126,14 @@ export default async function InterventionDetailPage({
                 Formulaire : {apresForm?.name}
               </p>
 
-              <a
-                href={qrApres}
-                download={`qr-apres-${it.slug}.png`}
-                className="inline-block"
-              >
+              <a href={qrApres} download={`qr-apres-${it.slug}.png`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img className="mt-4 cursor-pointer" src={qrApres} alt="QR Après" />
               </a>
             </>
           ) : (
             <p className="mt-2 text-sm text-slate-500">
-              Aucun formulaire APRÈS lié à cette intervention.
+              Aucun formulaire APRÈS lié.
             </p>
           )}
         </section>
@@ -145,7 +147,10 @@ export default async function InterventionDetailPage({
           📊 Voir stats
         </Link>
 
-        <Link href="/dashboard/interventions" className="rounded-md border px-4 py-2">
+        <Link
+          href="/dashboard/interventions"
+          className="rounded-md border px-4 py-2"
+        >
           ← Retour liste
         </Link>
       </div>
