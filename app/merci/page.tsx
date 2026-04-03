@@ -26,7 +26,7 @@ export default function MerciPage() {
         <section className="w-full">
           <div className="mb-6 flex justify-center">
             <span className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/70 px-4 py-1 text-xs font-medium text-[color:var(--muted)] backdrop-blur">
-              ✅  Soumission validée
+              ✅  Soumission validée  ✅
             </span>
           </div>
 
