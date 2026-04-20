@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 type FormValues = {
@@ -26,10 +26,20 @@ export default function ApresPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const storageKey = `greffup_apres_submitted_${slug}`;
+
   const { register, handleSubmit, watch, formState } = useForm<FormValues>({
     defaultValues: { q3_comprehension: [], q5_suivre: "Non" },
     mode: "onChange",
   });
+
+  useEffect(() => {
+    const alreadySubmitted = sessionStorage.getItem(storageKey);
+
+    if (alreadySubmitted === "true") {
+      router.replace("/merci");
+    }
+  }, [router, storageKey]);
 
   const suivre = watch("q5_suivre");
   const showEmail = useMemo(() => suivre === "Oui", [suivre]);
@@ -53,10 +63,10 @@ export default function ApresPage() {
         return;
       }
 
-      router.push("/merci");
+      sessionStorage.setItem(storageKey, "true");
+      router.replace("/merci");
     } catch {
       setErrorMsg("Erreur réseau. Réessaie.");
-    } finally {
       setLoading(false);
     }
   };
@@ -71,9 +81,10 @@ export default function ApresPage() {
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-8">
-        {/* Q1 */}
         <section className="space-y-3">
-          <h2 className="font-medium">1️⃣ Cette intervention vous a-t-elle appris de nouvelles choses ?</h2>
+          <h2 className="font-medium">
+            1️⃣ Cette intervention vous a-t-elle appris de nouvelles choses ?
+          </h2>
           {[
             "D’apprendre des choses nouvelles",
             "De mieux comprendre le don d’organes",
@@ -81,24 +92,32 @@ export default function ApresPage() {
             "Non",
           ].map((v) => (
             <label key={v} className="flex gap-2">
-              <input type="radio" value={v} {...register("q1_apports", { required: true })} />
+              <input
+                type="radio"
+                value={v}
+                {...register("q1_apports", { required: true })}
+              />
               <span>{v}</span>
             </label>
           ))}
         </section>
 
-        {/* Q2 */}
         <section className="space-y-3">
-          <h2 className="font-medium">2️⃣ Après cette sensibilisation, votre position sur le don d’organes est :</h2>
+          <h2 className="font-medium">
+            2️⃣ Après cette sensibilisation, votre position sur le don d’organes est :
+          </h2>
           {["Plus favorable qu’avant", "Inchangée", "Plus réservée qu’avant"].map((v) => (
             <label key={v} className="flex gap-2">
-              <input type="radio" value={v} {...register("q2_position", { required: true })} />
+              <input
+                type="radio"
+                value={v}
+                {...register("q2_position", { required: true })}
+              />
               <span>{v}</span>
             </label>
           ))}
         </section>
 
-        {/* Q3 */}
         <section className="space-y-3">
           <h2 className="font-medium">3️⃣ Avez-vous une meilleure compréhension :</h2>
           <p className="text-sm text-muted-foreground">Choix multiples possibles</p>
@@ -111,23 +130,33 @@ export default function ApresPage() {
           ))}
         </section>
 
-        {/* Q4 */}
         <section className="space-y-3">
-          <h2 className="font-medium">4️⃣ Pensez-vous être plus à l’aise pour en parler avec vos proches ?</h2>
+          <h2 className="font-medium">
+            4️⃣ Pensez-vous être plus à l’aise pour en parler avec vos proches ?
+          </h2>
           {["Oui", "Peut-être", "Non"].map((v) => (
             <label key={v} className="flex gap-2">
-              <input type="radio" value={v} {...register("q4_aisance", { required: true })} />
+              <input
+                type="radio"
+                value={v}
+                {...register("q4_aisance", { required: true })}
+              />
               <span>{v}</span>
             </label>
           ))}
         </section>
 
-        {/* Q5 */}
         <section className="space-y-3">
-          <h2 className="font-medium">5️⃣ Souhaitez-vous en savoir plus ou suivre les actions de Greff’Up ?</h2>
+          <h2 className="font-medium">
+            5️⃣ Souhaitez-vous en savoir plus ou suivre les actions de Greff’Up ?
+          </h2>
           {(["Oui", "Non"] as const).map((v) => (
             <label key={v} className="flex gap-2">
-              <input type="radio" value={v} {...register("q5_suivre", { required: true })} />
+              <input
+                type="radio"
+                value={v}
+                {...register("q5_suivre", { required: true })}
+              />
               <span>{v}</span>
             </label>
           ))}

@@ -53,6 +53,13 @@ export default function DashboardLayout({
               </Link>
 
               <Link
+                href="/dashboard/accompagnements"
+                className="rounded-full border border-black/10 bg-white/40 px-3 py-1 text-sm font-medium text-[color:var(--muted)] transition hover:bg-white hover:text-[var(--foreground)]"
+              >
+                Accompagnements
+              </Link>
+
+              <Link
                 href="/dashboard/forms"
                 className="rounded-full border border-black/10 bg-white/70 px-3 py-1 text-sm font-medium text-[color:var(--muted)] transition hover:bg-white hover:text-[var(--foreground)]"
               >

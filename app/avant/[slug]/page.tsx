@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 type FormValues = {
@@ -29,6 +29,8 @@ export default function AvantPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const storageKey = `greffup_avant_submitted_${slug}`;
+
   const { register, handleSubmit, watch, formState } = useForm<FormValues>({
     defaultValues: {
       q5_reticences: [],
@@ -37,6 +39,14 @@ export default function AvantPage() {
     },
     mode: "onChange",
   });
+
+  useEffect(() => {
+    const alreadySubmitted = sessionStorage.getItem(storageKey);
+
+    if (alreadySubmitted === "true") {
+      router.replace("/merci");
+    }
+  }, [router, storageKey]);
 
   const reticences = watch("q5_reticences");
   const showAutre = useMemo(() => reticences?.includes("Autre"), [reticences]);
@@ -60,27 +70,28 @@ export default function AvantPage() {
         return;
       }
 
-      router.push("/merci");
+      sessionStorage.setItem(storageKey, "true");
+      router.replace("/merci");
     } catch {
       setErrorMsg("Erreur réseau. Réessaie.");
-    } finally {
       setLoading(false);
     }
   };
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-2xl font-semibold">👉 Avant de commencer – votre avis compte</h1>
-      <p className="mt-2 text-muted-foreground">Réponses anonymes – moins d’1 minute</p>
+      <h1 className="text-2xl font-semibold">
+        👉 Avant de commencer – votre avis compte
+      </h1>
+      <p className="mt-2 text-muted-foreground">
+        Réponses anonymes – moins d’1 minute
+      </p>
 
       {errorMsg && (
-        <div className="mt-4 rounded-md border p-3 text-sm">
-          {errorMsg}
-        </div>
+        <div className="mt-4 rounded-md border p-3 text-sm">{errorMsg}</div>
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-8">
-        {/* Q1 */}
         <section className="space-y-3">
           <h2 className="font-medium">1️⃣ Avant aujourd’hui, diriez-vous que vous êtes :</h2>
           {[
@@ -90,15 +101,20 @@ export default function AvantPage() {
             "Pas du tout informé·e",
           ].map((v) => (
             <label key={v} className="flex gap-2">
-              <input type="radio" value={v} {...register("q1_info_level", { required: true })} />
+              <input
+                type="radio"
+                value={v}
+                {...register("q1_info_level", { required: true })}
+              />
               <span>{v}</span>
             </label>
           ))}
         </section>
 
-        {/* Q2 */}
         <section className="space-y-3">
-          <h2 className="font-medium">2️⃣ Aujourd’hui, concernant le don d’organes, vous vous situez plutôt :</h2>
+          <h2 className="font-medium">
+            2️⃣ Aujourd’hui, concernant le don d’organes, vous vous situez plutôt :
+          </h2>
           {[
             "Favorable",
             "Plutôt favorable",
@@ -107,37 +123,48 @@ export default function AvantPage() {
             "Opposé·e",
           ].map((v) => (
             <label key={v} className="flex gap-2">
-              <input type="radio" value={v} {...register("q2_position", { required: true })} />
+              <input
+                type="radio"
+                value={v}
+                {...register("q2_position", { required: true })}
+              />
               <span>{v}</span>
             </label>
           ))}
         </section>
 
-        {/* Q3 */}
         <section className="space-y-3">
           <h2 className="font-medium">
             3️⃣ Saviez-vous qu’en France, le don d’organes repose sur le principe du consentement présumé ?
           </h2>
           {(["Oui", "Non"] as const).map((v) => (
             <label key={v} className="flex gap-2">
-              <input type="radio" value={v} {...register("q3_consentement", { required: true })} />
+              <input
+                type="radio"
+                value={v}
+                {...register("q3_consentement", { required: true })}
+              />
               <span>{v}</span>
             </label>
           ))}
         </section>
 
-        {/* Q4 */}
         <section className="space-y-3">
-          <h2 className="font-medium">4️⃣ As-tu déjà parlé du don d’organes avec tes proches ?</h2>
+          <h2 className="font-medium">
+            4️⃣ As-tu déjà parlé du don d’organes avec tes proches ?
+          </h2>
           {(["Oui", "Non"] as const).map((v) => (
             <label key={v} className="flex gap-2">
-              <input type="radio" value={v} {...register("q4_discussion", { required: true })} />
+              <input
+                type="radio"
+                value={v}
+                {...register("q4_discussion", { required: true })}
+              />
               <span>{v}</span>
             </label>
           ))}
         </section>
 
-        {/* Q5 */}
         <section className="space-y-3">
           <h2 className="font-medium">
             5️⃣ Quelles sont les raisons qui peuvent expliquer des réticences vis-à-vis du don d’organes ?
