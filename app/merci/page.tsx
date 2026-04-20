@@ -59,7 +59,7 @@ export default function MerciPage() {
                 src="/brand/logo.jpg"
                 alt="Greff’Up"
                 width={140}
-                height={44}
+                height={40}
                 className="h-20 w-auto object-contain"
                 priority
               />
