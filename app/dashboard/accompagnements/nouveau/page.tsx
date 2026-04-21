@@ -1,197 +1,207 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+"use client";
 
-async function createAccompagnement(formData: FormData) {
-  "use server";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import BrandHeader from "@/app/dashboard/_components/BrandHeader";
 
-  const supabase = await supabaseServer();
+export default function NewAccompagnementPage() {
+  const router = useRouter();
 
-  const reference = String(formData.get("reference") ?? "").trim();
-  const ageRaw = String(formData.get("age") ?? "").trim();
-  const situation = String(formData.get("situation") ?? "").trim();
-  const date_premier_contact = String(formData.get("date_premier_contact") ?? "").trim();
-  const canal_premier_contact = String(formData.get("canal_premier_contact") ?? "").trim();
-  const notes = String(formData.get("notes") ?? "").trim();
+  const [reference, setReference] = useState("");
+  const [age, setAge] = useState("");
+  const [situation, setSituation] = useState<
+    "greffe" | "attente_greffe" | "proche_parent"
+  >("greffe");
+  const [datePremierContact, setDatePremierContact] = useState("");
+  const [canalPremierContact, setCanalPremierContact] = useState<
+    "telephone" | "mail" | "visio" | "physique" | "autre"
+  >("telephone");
+  const [notes, setNotes] = useState("");
 
-  if (!reference || !situation) {
-    throw new Error("La référence et la situation sont obligatoires.");
-  }
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const age = ageRaw ? Number(ageRaw) : null;
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading) return;
 
-  const { data, error } = await supabase
-    .from("accompagnements")
-    .insert({
-      reference,
-      age,
-      situation,
-      date_premier_contact: date_premier_contact || null,
-      canal_premier_contact: canal_premier_contact || null,
-      notes: notes || null,
-    })
-    .select("id")
-    .single();
+    setLoading(true);
+    setErr(null);
 
-  if (error || !data) {
-    throw new Error("Impossible de créer la fiche accompagnement.");
-  }
+    try {
+      const res = await fetch("/api/accompagnements", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reference: reference.trim(),
+          age: age ? Number(age) : null,
+          situation,
+          date_premier_contact: datePremierContact || null,
+          canal_premier_contact: canalPremierContact,
+          notes: notes.trim() || null,
+        }),
+      });
 
-  redirect(`/dashboard/accompagnements/${data.id}`);
-}
+      const data = await res.json().catch(() => null);
 
-export default function NouveauAccompagnementPage() {
+      if (!res.ok) {
+        setErr(data?.error ?? "Erreur lors de la création.");
+        setLoading(false);
+        return;
+      }
+
+      router.push("/dashboard/accompagnements");
+      router.refresh();
+    } catch {
+      setErr("Erreur réseau. Réessaie.");
+      setLoading(false);
+    }
+  };
+
   return (
-    <main className="mx-auto max-w-3xl">
-      {/* Header */}
-      <section className="mb-8">
-        <Link
-          href="/dashboard/accompagnements"
-          className="inline-flex items-center text-sm font-medium text-[color:var(--muted)] transition hover:text-[var(--foreground)]"
-        >
-          ← Retour aux accompagnements
-        </Link>
+    <main className="min-h-screen bg-background text-foreground">
+      <BrandHeader subtitle="Nouvel accompagnement" />
 
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight">
-          Nouvel accompagnement
-        </h1>
+      <div className="mx-auto mt-10 max-w-3xl px-6 pb-12">
+        <div className="rounded-3xl border border-black/10 bg-white/85 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.08)] backdrop-blur-sm md:p-8">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Créer une fiche accompagnement
+          </h1>
+          <p className="mt-2 text-sm text-[color:var(--muted)]">
+            Renseigne les informations principales pour démarrer le suivi.
+          </p>
 
-        <p className="mt-2 text-[color:var(--muted)]">
-          Crée une nouvelle fiche pour suivre une personne accompagnée.
-        </p>
-      </section>
+          {err && (
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {err}
+            </div>
+          )}
 
-      {/* Form */}
-      <form
-        action={createAccompagnement}
-        className="rounded-3xl border border-black/10 bg-white/85 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.08)] backdrop-blur-sm md:p-8"
-      >
-        <div className="grid gap-6">
-          {/* Reference */}
-          <div className="space-y-2">
-            <label htmlFor="reference" className="text-sm font-medium">
-              Référence / nom affiché *
-            </label>
-            <input
-              id="reference"
-              name="reference"
-              type="text"
-              placeholder="Ex: Accompagnement #001"
-              required
-              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-transparent focus:ring-2 focus:ring-[color:var(--greff-400)]"
-            />
-          </div>
+          <form onSubmit={onSubmit} className="mt-8 space-y-6">
+            <div className="grid gap-5 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Référence</label>
+                <input
+                  className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-[var(--greff-400)]"
+                  placeholder="Ex: ACC-2026-001"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  required
+                />
+              </div>
 
-          {/* Grid */}
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Age */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Âge</label>
+                <input
+                  className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-[var(--greff-400)]"
+                  placeholder="Ex: 32"
+                  type="number"
+                  min="0"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Situation</label>
+                <select
+                  className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-[var(--greff-400)]"
+                  value={situation}
+                  onChange={(e) =>
+                    setSituation(
+                      e.target.value as
+                        | "greffe"
+                        | "attente_greffe"
+                        | "proche_parent"
+                    )
+                  }
+                >
+                  <option value="greffe">Greffe</option>
+                  <option value="attente_greffe">En attente de greffe</option>
+                  <option value="proche_parent">Proche / parent</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Date du premier contact
+                </label>
+                <input
+                  className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-[var(--greff-400)]"
+                  type="date"
+                  value={datePremierContact}
+                  onChange={(e) => setDatePremierContact(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-1">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Canal du premier contact
+                </label>
+                <select
+                  className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-[var(--greff-400)]"
+                  value={canalPremierContact}
+                  onChange={(e) =>
+                    setCanalPremierContact(
+                      e.target.value as
+                        | "telephone"
+                        | "mail"
+                        | "visio"
+                        | "physique"
+                        | "autre"
+                    )
+                  }
+                >
+                  <option value="telephone">Téléphone</option>
+                  <option value="mail">Mail</option>
+                  <option value="visio">Visio</option>
+                  <option value="physique">Physique</option>
+                  <option value="autre">Autre</option>
+                </select>
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <label htmlFor="age" className="text-sm font-medium">
-                Âge
-              </label>
-              <input
-                id="age"
-                name="age"
-                type="number"
-                min={0}
-                max={120}
-                placeholder="Ex: 34"
-                className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-transparent focus:ring-2 focus:ring-[color:var(--greff-400)]"
+              <label className="text-sm font-medium">Notes</label>
+              <textarea
+                className="min-h-[140px] w-full rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-[var(--greff-400)]"
+                placeholder="Ajoute ici les infos utiles sur l’accompagnement..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
               />
             </div>
 
-            {/* Situation */}
-            <div className="space-y-2">
-              <label htmlFor="situation" className="text-sm font-medium">
-                Situation *
-              </label>
-              <select
-                id="situation"
-                name="situation"
-                required
-                defaultValue=""
-                className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-transparent focus:ring-2 focus:ring-[color:var(--greff-400)]"
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/accompagnements")}
+                className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-5 py-3 font-medium text-[var(--foreground)] transition hover:bg-[var(--greff-50)]"
+                disabled={loading}
               >
-                <option value="" disabled>
-                  Sélectionner une situation
-                </option>
-                <option value="greffe">Greffe</option>
-                <option value="attente_greffe">En attente de greffe</option>
-                <option value="proche_parent">Proche / parent</option>
-              </select>
-            </div>
-          </div>
+                Annuler
+              </button>
 
-          {/* Date + Canal */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <label htmlFor="date_premier_contact" className="text-sm font-medium">
-                Date du premier contact
-              </label>
-              <input
-                id="date_premier_contact"
-                name="date_premier_contact"
-                type="date"
-                className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-transparent focus:ring-2 focus:ring-[color:var(--greff-400)]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="canal_premier_contact" className="text-sm font-medium">
-                Canal du premier contact
-              </label>
-              <select
-                id="canal_premier_contact"
-                name="canal_premier_contact"
-                defaultValue=""
-                className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-transparent focus:ring-2 focus:ring-[color:var(--greff-400)]"
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex items-center justify-center rounded-2xl px-5 py-3 font-semibold text-white shadow-md transition disabled:cursor-not-allowed disabled:opacity-60"
+                style={{
+                  background:
+                    "linear-gradient(135deg, var(--greff-600) 0%, var(--greff-500) 55%, var(--greff-400) 100%)",
+                }}
               >
-                <option value="">Sélectionner un canal</option>
-                <option value="telephone">Téléphone</option>
-                <option value="mail">Mail</option>
-                <option value="visio">Visio</option>
-                <option value="physique">Physique</option>
-                <option value="autre">Autre</option>
-              </select>
+                {loading ? "Création..." : "Créer la fiche"}
+              </button>
             </div>
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-2">
-            <label htmlFor="notes" className="text-sm font-medium">
-              Notes
-            </label>
-            <textarea
-              id="notes"
-              name="notes"
-              rows={5}
-              placeholder="Contexte, remarques, éléments utiles..."
-              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-transparent focus:ring-2 focus:ring-[color:var(--greff-400)]"
-            />
-          </div>
+          </form>
         </div>
-
-        {/* Footer */}
-        <div className="mt-8 flex flex-col-reverse gap-3 border-t border-black/10 pt-6 sm:flex-row sm:justify-end">
-          <Link
-            href="/dashboard/accompagnements"
-            className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-5 py-3 font-medium text-[var(--foreground)] transition hover:bg-[var(--greff-50)]"
-          >
-            Annuler
-          </Link>
-
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center rounded-2xl px-5 py-3 font-semibold text-white shadow-md transition"
-            style={{
-              background:
-                "linear-gradient(135deg, var(--greff-600) 0%, var(--greff-500) 55%, var(--greff-400) 100%)",
-            }}
-          >
-            Créer la fiche
-          </button>
-        </div>
-      </form>
+      </div>
     </main>
   );
 }
