@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import AccompagnementsList from "./_components/AccompagnementsList";
@@ -124,12 +123,9 @@ export default async function AccompagnementsPage() {
             Crée une première fiche pour commencer le suivi des personnes accompagnées.
           </p>
 
-          <Link
-            href="/dashboard/accompagnements/nouveau"
-            className="mt-6 inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-5 py-3 font-semibold text-[var(--greff-600)] transition hover:bg-[var(--greff-50)]"
-          >
-            Créer une fiche
-          </Link>
+          <div className="mt-6 flex justify-center">
+            <NewAccompagnementButton />
+          </div>
         </section>
       ) : (
         <AccompagnementsList
