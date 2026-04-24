@@ -20,9 +20,7 @@ async function deleteSelectedAccompagnements(formData: FormData) {
     .map((value) => String(value).trim())
     .filter(Boolean);
 
-  if (ids.length === 0) {
-    return;
-  }
+  if (ids.length === 0) return;
 
   const supabase = await supabaseServer();
 
@@ -77,6 +75,9 @@ export default async function AccompagnementsPage() {
     .select("id, reference, age, situation, date_premier_contact, created_at")
     .order("created_at", { ascending: false });
 
+  console.log("ACCOMPAGNEMENTS DATA:", data);
+  console.log("ACCOMPAGNEMENTS ERROR:", error);
+
   if (error) {
     return (
       <main className="space-y-6">
@@ -100,7 +101,9 @@ export default async function AccompagnementsPage() {
     <main className="space-y-8">
       <section className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Accompagnements</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Accompagnements
+          </h1>
           <p className="mt-2 text-[color:var(--muted)]">
             Suivi des personnes accompagnées Greff’Up
           </p>
